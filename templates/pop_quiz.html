@@ -1,0 +1,101 @@
+<!doctype html>
+
+<html>
+<head>
+	<title>Pop Quiz for Vocabulary</title>
+	<style type="text/css">
+	html {
+		height: 100%;
+	}
+	body {
+		height: 100%;
+		background-color: #d0e4fe
+	}
+	#wrapper {
+		height: 85%;
+		align-items: center;
+	}
+	form {
+		margin: auto;
+	    width: 40%;
+	    border: 3px solid #73AD21;
+	    padding: 10px;
+	}
+	</style>
+</head>
+
+<body>
+	<div id="wrapper">
+	<p>Your Vocabulary Test</p>
+	<form>
+	English Word: 
+	{% for word in volcabulary %}
+		{% if word[0] %}
+			<input type="text" name="fname" id=word{{word[2]}} value="" maxlength="1" style=width:15px {% if word[2] == first_word_idx %}autofocus{% endif %} onkeypress="return jump(event, this)" onfocus="clear(this)"> 
+			<input type="hidden" name="fname" id=ans_word{{word[2]}} value="{{word[1]}}" maxlength="1" style=width:15px> 
+		{% else %}
+			{{word[1]}}
+		{% endif %}
+	{% endfor %}
+	<br>
+	Chinese meaning: {{word_chi}}
+	<br>
+	<input type="button" onclick="compare_word()" value="enter">
+	</form>
+	</div>
+</body>
+
+</html>
+
+
+<script type="text/javascript">
+function clear(element) {
+	element.value = '';
+}
+
+function jump(event, element) {
+
+	var keychar = String.fromCharCode(event.keyCode);
+	element.value = keychar;
+	inputs = document.getElementsByTagName('input');
+	
+	non_hidden_inputs = [];
+	
+	for ( idx = 0; idx < inputs.length; idx++ ) {
+		if (inputs[idx].type == 'text') { non_hidden_inputs.push(inputs[idx]); }
+	}
+	
+	for (idx = 0; idx < non_hidden_inputs.length; idx++ ) {
+		if (non_hidden_inputs[idx].id == element.id){
+
+			if ( idx + 1 < non_hidden_inputs.length ) { 
+				console.log("next button" + non_hidden_inputs[idx+1]);
+				non_hidden_inputs[idx+1].value="";
+				non_hidden_inputs[idx+1].focus();
+			}
+			else { // meaning last word
+				compare_word();
+			}
+		}
+	}
+	
+	return true; 
+}
+function compare_word(){
+	var total_word = 5;
+	var correct = true;
+	for(var i = 0; i < total_word; i++) {
+		if ( document.getElementById("word"+i) != null) {
+			var ans_word = document.getElementById("ans_word"+i).value;
+			var word = document.getElementById("word"+i).value;
+			if ( ans_word != word ){
+				correct = false;
+			}
+		}
+	}
+
+	if (correct) { location.reload(); }
+	else { alert("error"); }
+}
+
+</script>
