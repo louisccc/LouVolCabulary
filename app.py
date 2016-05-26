@@ -1,7 +1,7 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from flask import Flask, jsonify, json
+from flask import Flask, jsonify, json, request
 from flask import render_template
 from flask.ext.sqlalchemy import SQLAlchemy
 
@@ -19,31 +19,34 @@ db = SQLAlchemy(app)
 
 ### DB model def
 class Volcabulary(db.Model):
-	# __tablename__ = "volca"
 
 	vol_id = db.Column(db.Integer, primary_key=True)
 	content = db.Column(db.String(40))
 	content_chinese = db.Column(db.String(60))
+	part_of_speech = db.Column(db.String(10))
 
-	def __init__(self, content, content_chinese):
+
+	def __init__(self, content, content_chinese, part_of_speech):
 		self.content = content
 		self.content_chinese = content_chinese
+		self.part_of_speech = part_of_speech
 
 	def __repr__(self):
-		return '<Volcabulary: %d %s %s>' % (self.vol_id, self.content, self.content_chinese)
+		return '<Volcabulary: %d %s %s %s>' % (self.vol_id, self.content, self.content_chinese, self.part_of_speech)
 
 	@property
 	def serialize(self):
 		return {
 			'id' : self.vol_id,
 			'content' : self.content,
-			'content_chinese' : self.content_chinese
+			'content_chinese' : self.content_chinese,
+			'part_of_speech': self.part_of_speech
 		}
 
 ### api route settings
 @app.route("/")
 def hello():
-	vol = Volcabulary("astronaut", u"太空人")
+	vol = Volcabulary("astronaut", u"太空人", "n.")
 	# print vol
 	db.session.add(vol)
 	db.session.commit()
@@ -55,9 +58,21 @@ def hello():
 	# 	print v
 	return "Hello World!"
 
-@app.route("/mem_vol")
+@app.route("/mem_vol", methods=['POST', 'GET'])
 def men_vol():
-	pass
+	if request.method == 'POST':
+		return
+	elif request.method == 'GET':
+		word = request.args.get('word', '')
+		trans = request.args.get('trans', '')
+		pos = request.args.get('pos', '')
+
+		if word != '' and trans != '' and pos != '':
+			vol = Volcabulary(word, trans, pos)
+			db.session.add(vol)
+			db.session.commit()
+
+	return render_template('mem_vol.html')
 
 @app.route("/show_vol")
 def show_vol():
@@ -67,8 +82,11 @@ def show_vol():
 @app.route("/pop_quiz")
 def pop_quiz():
 
-	words = 'astronaut'
-	words_chinese = u'太空人'
+	vols = Volcabulary.query.all()
+	pick_index = random.randint(0, len(vols)-1)
+
+	words = vols[pick_index].content
+	words_chinese = vols[pick_index].content_chinese
 	words_split =[]
 
 	for idx in range(0, len(words)):
