@@ -4,9 +4,12 @@
 from flask import Flask, jsonify, json, request
 from flask import render_template
 from flask.ext.sqlalchemy import SQLAlchemy
+from sqlalchemy.sql import and_
 
 import random
 import sys
+import logging
+from logging.handlers import RotatingFileHandler
 
 ### Change default encoding to utf-8
 reload(sys)
@@ -15,74 +18,89 @@ sys.setdefaultencoding("utf-8")
 ### init app & db
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///test.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
 db = SQLAlchemy(app)
 
-### DB model def
-class Volcabulary(db.Model):
+from models import *
 
-	vol_id = db.Column(db.Integer, primary_key=True)
-	content = db.Column(db.String(40))
-	content_chinese = db.Column(db.String(60))
-	part_of_speech = db.Column(db.String(10))
+def add_vocabulary(content, content_chinese, part_of_speech, hashtags):
+	if is_vocabulary_exist(content, content_chinese) is False: 
+		vol = Vocabulary(content, content_chinese, part_of_speech, hashtags)
+		db.session.add(vol)
+		db.session.commit()
+		app.logger.info('%s is added' % vol)
+		return True
+	return False
 
+def add_hashtag(tag_name):
+	if is_hashtag_exist(tag_name) is False:
+		hashtag = HashTags(tag_name)
+		db.session.add(hashtag)
+		db.session.commit()
+		app.logger.info('%s is added' % hashtag)
+		return True
+	return False
 
-	def __init__(self, content, content_chinese, part_of_speech):
-		self.content = content
-		self.content_chinese = content_chinese
-		self.part_of_speech = part_of_speech
+def query_vocabulary(content, content_chinese, part_of_speech, hashtags):
+	vols = Vocabulary.query\
+			.filter(Vocabulary.content == content)\
+			.filter(Vocabulary.content_chinese == content_chinese)
+	return jsonify(vol=[v.serialize for v in vols])
 
-	def __repr__(self):
-		return '<Volcabulary: %d %s %s %s>' % (self.vol_id, self.content, self.content_chinese, self.part_of_speech)
+def query_vocabulary_all():
+	return Vocabulary.query.all()
 
-	@property
-	def serialize(self):
-		return {
-			'id' : self.vol_id,
-			'content' : self.content,
-			'content_chinese' : self.content_chinese,
-			'part_of_speech': self.part_of_speech
-		}
+def query_hashtags_all():
+	return HashTags.query.all()
+
+def is_vocabulary_exist(content, content_chinese):
+	query = db.session.query(Vocabulary)\
+			.filter(Vocabulary.content == content)\
+			.filter(Vocabulary.content_chinese == content_chinese)
+	return db.session.query(query.exists()).scalar()
+
+def is_hashtag_exist(tag_name):
+	query = db.session.query(HashTags)\
+			.filter(HashTags.tag_name == tag_name)
+	return db.session.query(query.exists()).scalar()
 
 ### api route settings
-@app.route("/")
-def hello():
-	vol = Volcabulary("astronaut", u"太空人", "n.")
-	# print vol
-	db.session.add(vol)
-	db.session.commit()
-	# print db.session
-	# vols = Volcabulary.query.all()
-	# print vols
-	# print len(vols)
-	# for v in vols:
-	# 	print v
-	return "Hello World!"
-
 @app.route("/mem_vol", methods=['POST', 'GET'])
 def men_vol():
 	if request.method == 'POST':
-		return
+		return show_info()
+		
 	elif request.method == 'GET':
 		word = request.args.get('word', '')
 		trans = request.args.get('trans', '')
 		pos = request.args.get('pos', '')
+		hashtags = request.args.get('hashtags', 'general,')		
 
 		if word != '' and trans != '' and pos != '':
-			vol = Volcabulary(word, trans, pos)
-			db.session.add(vol)
-			db.session.commit()
+			if add_vocabulary(word, trans, pos, hashtags) is True:
+				if hashtags != '':
+					splited_hashtags = hashtags.split(',')
+					for splited_hashtag in splited_hashtags:
+						if splited_hashtag is not '':
+				   			add_hashtag(splited_hashtag)
 
-	return render_template('mem_vol.html')
+		return show_info()
+	else:
+		return render_template('mem_vol.html')
 
-@app.route("/show_vol")
-def show_vol():
-	vols = Volcabulary.query.all()
-	return jsonify(data=[v.serialize for v in vols])
+### for debug 
+@app.route("/show_info")
+def show_info():
+	vols = query_vocabulary_all()
+	hashtags = query_hashtags_all()
+	return jsonify(vol=[v.serialize for v in vols], \
+				   hashtags=[h.serialize for h in hashtags])
+# def show_info(hashtags, show_all_hashtags=False):
 
 @app.route("/pop_quiz")
 def pop_quiz():
 
-	vols = Volcabulary.query.all()
+	vols = Vocabulary.query.all()
 	pick_index = random.randint(0, len(vols)-1)
 
 	words = vols[pick_index].content
@@ -105,6 +123,12 @@ def pop_quiz():
 
 ### app main 
 if __name__ == "__main__":
-    db.create_all()
-    app.run(debug=True)
+	formatter = logging.Formatter(\
+		"[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+	handler = RotatingFileHandler('vol.log', maxBytes=10000, backupCount=2)
+	handler.setLevel(logging.INFO)
+	handler.setFormatter(formatter)
+	app.logger.addHandler(handler)
+	db.create_all()
+	app.run(debug=True)
 
