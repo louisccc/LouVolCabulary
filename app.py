@@ -67,15 +67,8 @@ def is_hashtag_exist(tag_name):
 ### api route settings
 @app.route("/mem_vol", methods=['POST', 'GET'])
 def men_vol():
-	if request.method == 'POST':
-		return show_info()
-		
-	elif request.method == 'GET':
-		word = request.args.get('word', '')
-		trans = request.args.get('trans', '')
-		pos = request.args.get('pos', '')
-		hashtags = request.args.get('hashtags', 'general,')		
 
+	def handle_memorize_vocabulary(word, trans, pos, hashtags):
 		if word != '' and trans != '' and pos != '':
 			if add_vocabulary(word, trans, pos, hashtags) is True:
 				if hashtags != '':
@@ -83,7 +76,23 @@ def men_vol():
 					for splited_hashtag in splited_hashtags:
 						if splited_hashtag is not '':
 				   			add_hashtag(splited_hashtag)
+		else:
+			pprint('mem_vol format wrong')
 
+	if request.method == 'POST':
+		word = request.form.get('word', '')
+		trans = request.form.get('trans', '')
+		pos = request.form.get('pos', '')
+		hashtags = request.form.get('hashtags', 'general,')
+		handle_memorize_vocabulary(word,trans,pos,hashtags)
+		return show_info()
+		
+	elif request.method == 'GET':
+		word = request.args.get('word', '')
+		trans = request.args.get('trans', '')
+		pos = request.args.get('pos', '')
+		hashtags = request.args.get('hashtags', 'general,')
+		handle_memorize_vocabulary(word,trans,pos,hashtags)
 		return show_info()
 	else:
 		return render_template('mem_vol.html')
@@ -91,10 +100,8 @@ def men_vol():
 ### for debug 
 @app.route("/show_info")
 def show_info():
-	vols = query_vocabulary_all()
-	hashtags = query_hashtags_all()
-	return jsonify(vol=[v.serialize for v in vols], \
-				   hashtags=[h.serialize for h in hashtags])
+	return jsonify(vol=[v.serialize for v in query_vocabulary_all()], \
+				   hashtags=[h.serialize for h in query_hashtags_all()])
 # def show_info(hashtags, show_all_hashtags=False):
 
 @app.route("/pop_quiz")
