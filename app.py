@@ -6,7 +6,8 @@ from flask import render_template
 from flask.ext.sqlalchemy import SQLAlchemy
 from sqlalchemy.sql import and_
 
-import random
+# import random
+from random import choice, randint
 import sys
 import logging
 from logging.handlers import RotatingFileHandler
@@ -67,7 +68,6 @@ def is_hashtag_exist(tag_name):
 ### api route settings
 @app.route("/mem_vol", methods=['POST', 'GET'])
 def men_vol():
-
 	def handle_memorize_vocabulary(word, trans, pos, hashtags):
 		if word != '' and trans != '' and pos != '':
 			if add_vocabulary(word, trans, pos, hashtags) is True:
@@ -78,7 +78,6 @@ def men_vol():
 				   			add_hashtag(splited_hashtag)
 		else:
 			pprint('mem_vol format wrong')
-
 	if request.method == 'POST':
 		word = request.form.get('word', '')
 		trans = request.form.get('trans', '')
@@ -86,7 +85,6 @@ def men_vol():
 		hashtags = request.form.get('hashtags', 'general,')
 		handle_memorize_vocabulary(word,trans,pos,hashtags)
 		return show_info()
-		
 	elif request.method == 'GET':
 		word = request.args.get('word', '')
 		trans = request.args.get('trans', '')
@@ -103,30 +101,43 @@ def show_info():
 	return jsonify(vol=[v.serialize for v in query_vocabulary_all()], \
 				   hashtags=[h.serialize for h in query_hashtags_all()])
 # def show_info(hashtags, show_all_hashtags=False):
-
+import pprint
 @app.route("/pop_quiz")
 def pop_quiz():
 
-	vols = Vocabulary.query.all()
-	pick_index = random.randint(0, len(vols)-1)
-
-	words = vols[pick_index].content
-	words_chinese = vols[pick_index].content_chinese
-	words_split =[]
-
-	for idx in range(0, len(words)):
-		word = []
-		word.append(random.randint(0,1))
-		word.append(words[idx])
-		word.append(idx)
-		words_split.append( word )
+	def gen_test_char_in_word(random_vocabulary):
+		test_char_in_word =[]
+		for index in range(0, len(random_vocabulary.content)):
+			test_char = { 'hidden': randint(0,1),\
+					      'index' : index,\
+					      'char'  : random_vocabulary.content[index],}
+			test_char_in_word.append( test_char )
+		return test_char_in_word
 	
-	for word in words_split:
-		if ( word [0] == 1 ): 
-			first_blank_idx = word[2]
-			break
+	def get_first_blank_idx(test_char_in_word):
+		first_blank_idx = -1;
+		for test_char in test_char_in_word:
+			if test_char ['hidden'] is 1: 
+				first_blank_idx = test_char['index']
+				break
+		if first_blank_idx is -1:
+			test_char = choice(test_char_in_word)
+			test_char['hidden'] = 1
+			first_blank_idx = test_char['index']
+		return first_blank_idx
+	
+	random_vocabulary = choice(Vocabulary.query.all())
+	test_char_in_word = gen_test_char_in_word(random_vocabulary)
+	first_blank_idx   = get_first_blank_idx(test_char_in_word)
+	
+	app.logger.info('Random Pick %s to test.\ntest_chars:\n%s\nfirst_blank_idx: %s'\
+					%(random_vocabulary,\
+					  pprint.pformat(test_char_in_word),\
+					  first_blank_idx,))
 
-	return render_template('pop_quiz.html', volcabulary=words_split, word=words, word_chi=words_chinese, first_word_idx=first_blank_idx)
+	return render_template('pop_quiz.html', vocabulary=test_char_in_word,\
+											obj_vocabulary=random_vocabulary,\
+											first_char_idx=first_blank_idx)
 
 ### app main 
 if __name__ == "__main__":

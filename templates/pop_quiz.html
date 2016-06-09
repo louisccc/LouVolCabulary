@@ -11,16 +11,16 @@
 	<p>Your Vocabulary Test</p>
 	<form>
 	English Word: 
-	{% for word in volcabulary %}
-		{% if word[0] %}
-			<input type="text" name="fname" id=word{{word[2]}} value="" maxlength="1" style=width:15px {% if word[2] == first_word_idx %}autofocus{% endif %} onkeypress="return jump(event, this)" onfocus="clear(this)"> 
-			<input type="hidden" name="fname" id=ans_word{{word[2]}} value="{{word[1]}}" maxlength="1" style=width:15px> 
+	{% for word in vocabulary %}
+		{% if word['hidden'] %}
+			<input type="text" name="fname" id=word{{word['index']}} value="" maxlength="1" style=width:15px {% if word['index'] == first_char_idx %}autofocus{% endif %} onkeypress="return jump(event, this)" onfocus="clear(this)"> 
+			<input type="hidden" name="fname" id=ans_word{{word['index']}} value="{{word['char']}}" maxlength="1" style=width:15px> 
 		{% else %}
-			{{word[1]}}
+			{{word['char']}}
 		{% endif %}
 	{% endfor %}
 	<br>
-	Chinese meaning: {{word_chi}}
+	Chinese meaning: {{obj_vocabulary.content_chinese}}
 	<br>
 	<input type="button" onclick="compare_word()" value="enter">
 	</form>

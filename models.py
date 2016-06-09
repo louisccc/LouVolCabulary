@@ -26,6 +26,7 @@ class Vocabulary(db.Model):
 			'part_of_speech': self.part_of_speech,
 			'hashtags': self.hashtags
 		}
+	
 
 class HashTags(db.Model):
 	tag_id = db.Column(db.Integer, primary_key=True)
